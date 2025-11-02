@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "id": "62517b58-7bb7-4c75-88aa-c8cdf373723b",
+      "email": "admin@admin.com",
+      "passwordHash": "$2a$10$eBI9hHnpPelIlVmfgkdSje8Q3PqyrjXMdaYCqt1JTcRWow3.tGEMu",
+      "role": "admin",
+      "usage": {
+        "used": 0,
+        "limit": 20
+      }
+    }
+  ]
+}
