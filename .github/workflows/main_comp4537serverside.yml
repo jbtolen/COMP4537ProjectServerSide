@@ -1,7 +1,6 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - COMP4537ServerSide
+name: Build and deploy Node.js + Python ML app to Azure Web App - COMP4537ServerSide
 
 on:
   push:
@@ -13,23 +12,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
+      # 1️⃣ Checkout code
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      # 2️⃣ Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '22.x'
 
-      - name: npm install, build, and test
+      # 3️⃣ Set up Python (for ML model)
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 4️⃣ Install Node + Python dependencies
+      - name: Install dependencies
         run: |
-          npm install
+          echo "Installing Node packages..."
+          npm ci
+
+          echo "Creating Python virtual environment..."
+          python -m venv venv
+          source venv/bin/activate
+          echo "Installing Python ML dependencies..."
+          pip install --upgrade pip
+          pip install torch torchvision transformers pillow
+
+      # 5️⃣ Build/test Node app (optional)
+      - name: Build and test
+        run: |
           npm run build --if-present
           npm run test --if-present
 
-      - name: Upload artifact for deployment job
+      # 6️⃣ Upload artifact for deployment
+      - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: node-app
@@ -39,15 +60,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
+      # 7️⃣ Download artifact
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      
+
+      # 8️⃣ Login to Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -55,11 +78,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_89F954D683DD49C8BA721E1E4C19C551 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8254D4398BDB4DFFB77A576536E87BD5 }}
 
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      # 9️⃣ Deploy Node + Python app to Azure Web App
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'COMP4537ServerSide'
           slot-name: 'Production'
           package: .
-          
