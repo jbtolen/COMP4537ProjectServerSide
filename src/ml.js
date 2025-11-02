@@ -26,7 +26,7 @@ function resolvePythonPath() {
   throw new Error("No Python interpreter found. Install Python or create a venv.");
 }
 
-router.post("/ml/classify", upload.single("image"), async (req, res) => {
+router.post("/classify", upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No image uploaded" });
   const imgPath = req.file.path;
   const scriptPath = path.join(__dirname, "waste_model.py");
