@@ -32,23 +32,16 @@ jobs:
 
       # 4️⃣ Install Node + Python dependencies
       # 4️⃣ Install Node + Python dependencies (optimized)
-      - name: Install dependencies (optimized)
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Prepare Python requirements
         run: |
-          echo "Installing Node packages..."
-          npm ci
+        echo "torch" > requirements.txt
+        echo "torchvision" >> requirements.txt
+        echo "transformers" >> requirements.txt
+        echo "pillow" >> requirements.txt
 
-          echo "Creating Python virtual environment..."
-          python -m venv venv
-          source venv/bin/activate
-
-          echo "Installing lightweight Python ML dependencies..."
-          pip install --upgrade pip
-          pip install torch torchvision transformers pillow \
-            --no-cache-dir \
-            --extra-index-url https://download.pytorch.org/whl/cpu
-
-          echo "Cleaning caches to free up space..."
-          sudo rm -rf ~/.cache/pip ~/.cache/huggingface /usr/share/dotnet /opt/ghc /usr/local/share/boost
 
 
       # 5️⃣ Build/test Node app (optional)
