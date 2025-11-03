@@ -7,7 +7,7 @@ const JsonStore = require('./store');
 const AuthService = require('./auth');
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DEFAULT_ORIGINS = ['http://localhost:5500', 'http://127.0.0.1:5500'];
+const DEFAULT_ORIGINS = ['http://localhost:5500', 'http://127.0.0.1:5500', 'https://comp4537clientside.onrender.com'];
 const CLIENT_ORIGINS_ENV = (process.env.CLIENT_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const ALLOWED_ORIGINS = CLIENT_ORIGINS_ENV.length ? CLIENT_ORIGINS_ENV : DEFAULT_ORIGINS;
 const USE_API_PREFIX = true; // keep /api prefix to match client default
