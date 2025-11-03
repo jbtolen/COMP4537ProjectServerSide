@@ -10,7 +10,7 @@ const upload = multer({ dest: path.join(__dirname, "../uploads/") });
 // ✅ Cross-platform Python resolution
 function resolvePythonPath() {
   const candidates = [
-    path.join(__dirname, "../venv/bin/python3"), // Mac/Linux venv
+    path.join(__dirname, "../venv/bin/python3"), // macOS/Linux venv
     path.join(__dirname, "../venv/Scripts/python.exe"), // Windows venv
     "python3", // global Python
     "python"   // fallback
@@ -28,12 +28,15 @@ function resolvePythonPath() {
 
 router.post("/classify", upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+
   const imgPath = req.file.path;
   const scriptPath = path.join(__dirname, "waste_model.py");
   const pythonPath = resolvePythonPath();
 
   try {
-    const py = spawn(pythonPath, [scriptPath, imgPath]);
+    // ✅ -u ensures unbuffered stdout for instant clean output
+    const py = spawn(pythonPath, ["-u", scriptPath, imgPath]);
+
     let dataBuffer = "";
     let errorBuffer = "";
 
@@ -41,18 +44,26 @@ router.post("/classify", upload.single("image"), async (req, res) => {
     py.stderr.on("data", (data) => (errorBuffer += data.toString()));
 
     py.on("close", (code) => {
-      fs.unlink(imgPath, () => {});
-      console.log(`Python exited with code ${code}`);
+      fs.unlink(imgPath, () => {}); // delete uploaded file
+      console.log(`\n🐍 Python exited with code ${code}`);
       if (errorBuffer) console.error("Python stderr:", errorBuffer);
+
+      const clean = (dataBuffer || "").trim();
+      console.log("🧩 Raw stdout:", clean);
+
       try {
-        const parsed = JSON.parse(dataBuffer);
-        res.json(parsed);
-      } catch {
-        console.error("Bad model output:", dataBuffer);
-        res.status(500).json({ error: "Invalid model output", raw: dataBuffer });
+        if (!clean) throw new Error("Empty stdout");
+        const parsed = JSON.parse(clean);
+        return res.json(parsed);
+      } catch (err) {
+        console.error("❌ Invalid model output:", clean);
+        return res
+          .status(500)
+          .json({ error: "Invalid model output", raw: clean || errorBuffer || "" });
       }
     });
   } catch (err) {
+    console.error("🔥 Server-side error:", err);
     res.status(500).json({ error: err.message });
   }
 });
