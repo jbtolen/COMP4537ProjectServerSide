@@ -7,33 +7,23 @@ const JsonStore = require('./store');
 const AuthService = require('./auth');
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const DEFAULT_ORIGINS = [
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-  'https://comp4537projectclientside.onrender.com'
-];
-const CLIENT_ORIGINS_ENV = (process.env.CLIENT_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-const ALLOWED_ORIGINS = CLIENT_ORIGINS_ENV.length ? CLIENT_ORIGINS_ENV : DEFAULT_ORIGINS;
-const USE_API_PREFIX = true;
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Global CORS (applies before routers)
+// ✅ Global CORS configuration (works for localhost + Render)
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    const allowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
-    if (allowed) return callback(null, true);
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
-  },
+  origin: [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://comp4537projectclientside.onrender.com'
+  ],
   credentials: true,
   optionsSuccessStatus: 200
 };
-app.use(cors(corsOptions));
 
-// ✅ Explicit preflight handling
+app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 const store = new JsonStore(path.join(__dirname, '..', 'data', 'db.json'));
@@ -43,7 +33,7 @@ const auth = new AuthService(store, {
 });
 auth.seedAdmin();
 
-// Routers
+// ✅ Auth routes
 const router = express.Router();
 
 router.post('/auth/register', (req, res) => {
@@ -89,16 +79,11 @@ router.post('/auth/logout', (req, res) => {
   return res.status(200).json({ ok: true });
 });
 
-// ✅ Attach routers after CORS
-if (USE_API_PREFIX) {
-  app.use("/api", router);
-  app.use("/api/ml", mlRouter);
-} else {
-  app.use("/", router);
-  app.use("/", mlRouter);
-}
+// ✅ Mount routers
+app.use("/api", router);
+app.use("/api/ml", mlRouter);
 
-// ✅ Catch-all to ensure CORS on errors too
+// ✅ Catch-all for 404 (keeps CORS headers)
 app.use((req, res) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -106,6 +91,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ API listening on port ${PORT}${USE_API_PREFIX ? '/api' : ''}`);
-  console.log(`CORS allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+  console.log(`✅ API listening on port ${PORT}/api`);
+  console.log(`CORS allowed origins: ${corsOptions.origin.join(', ')}`);
 });

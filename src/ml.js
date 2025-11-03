@@ -16,9 +16,11 @@ const corsOptions = {
   credentials: true,
 };
 
-// ✅ Apply CORS globally for this router
-router.use(cors(corsOptions));
+// ✅ Always handle preflight first
 router.options("*", cors(corsOptions));
+
+// ✅ Apply CORS before all routes
+router.use(cors(corsOptions));
 
 const upload = multer({ dest: path.join(__dirname, "../uploads/") });
 
