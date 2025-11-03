@@ -10,7 +10,7 @@ const router = express.Router();
 // ✅ CORS options for both local + hosted
 const corsOptions = {
   origin: [
-    "https://comp4537projectclientside.onrender.com",
+    "https://comp4537projectclientside.onrender.com/index.html",
     "http://localhost:5500",
   ],
   credentials: true,
