@@ -55,7 +55,13 @@ jobs:
         run: |
           # Create a zip containing only files needed to run the server.
           # Exclude heavy model caches (hf_cache, models--prithivMLmods--*) which cause OneDeploy failures.
-          zip -r deploy.zip package.json src requirements.txt waste_model.py || true
+          zip -r deploy.zip package.json src requirements.txt waste_model.py
+          # Fail if deploy.zip not created and show diagnostics
+          if [ ! -f deploy.zip ]; then
+            echo "ERROR: deploy.zip was not created"
+            ls -la
+            exit 1
+          fi
           echo "Created deploy.zip (size: $(du -h deploy.zip | cut -f1))"
 
       # 7️⃣ Upload artifact for deployment (the zip only)
@@ -79,6 +85,13 @@ jobs:
         with:
           name: node-app
 
+      - name: List downloaded artifact contents (diagnostic)
+        run: |
+          echo "Current workspace: $(pwd)"
+          ls -la
+          echo "Listing node-app dir (if present):" || true
+          ls -la node-app || true
+
       # 8️⃣ Login to Azure
       - name: Login to Azure
         uses: azure/login@v2
@@ -94,4 +107,4 @@ jobs:
           app-name: 'COMP4537ServerSide'
           slot-name: 'Production'
           # Point to the zip downloaded from the build job
-          package: ./node-app/deploy.zip
+          package: node-app/deploy.zip
