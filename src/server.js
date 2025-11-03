@@ -27,7 +27,7 @@ class Server {
       origin: [
         "http://localhost:5500",
         "http://127.0.0.1:5500",
-        "https://comp4537projectclientside.onrender.com"
+        "https://comp4537projectclientside.onrender.com/index.html"
       ],
       credentials: true,
       optionsSuccessStatus: 200
