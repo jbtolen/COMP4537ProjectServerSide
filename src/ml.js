@@ -1,19 +1,34 @@
 const express = require("express");
+const cors = require("cors");
 const multer = require("multer");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
 const router = express.Router();
+
+// ✅ CORS options for both local + hosted
+const corsOptions = {
+  origin: [
+    "https://comp4537projectclientside.onrender.com",
+    "http://localhost:5500",
+  ],
+  credentials: true,
+};
+
+// ✅ Apply CORS globally for this router
+router.use(cors(corsOptions));
+router.options("*", cors(corsOptions));
+
 const upload = multer({ dest: path.join(__dirname, "../uploads/") });
 
-// ✅ Cross-platform Python resolution
+// ✅ Cross-platform Python path resolution
 function resolvePythonPath() {
   const candidates = [
     path.join(__dirname, "../venv/bin/python3"), // macOS/Linux venv
     path.join(__dirname, "../venv/Scripts/python.exe"), // Windows venv
-    "python3", // global Python
-    "python"   // fallback
+    "python3",
+    "python"
   ];
 
   for (const candidate of candidates) {
@@ -26,6 +41,7 @@ function resolvePythonPath() {
   throw new Error("No Python interpreter found. Install Python or create a venv.");
 }
 
+// ✅ POST /api/ml/classify
 router.post("/classify", upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No image uploaded" });
 
@@ -34,7 +50,6 @@ router.post("/classify", upload.single("image"), async (req, res) => {
   const pythonPath = resolvePythonPath();
 
   try {
-    // ✅ -u ensures unbuffered stdout for instant clean output
     const py = spawn(pythonPath, ["-u", scriptPath, imgPath]);
 
     let dataBuffer = "";
@@ -45,11 +60,16 @@ router.post("/classify", upload.single("image"), async (req, res) => {
 
     py.on("close", (code) => {
       fs.unlink(imgPath, () => {}); // delete uploaded file
+
       console.log(`\n🐍 Python exited with code ${code}`);
       if (errorBuffer) console.error("Python stderr:", errorBuffer);
 
       const clean = (dataBuffer || "").trim();
       console.log("🧩 Raw stdout:", clean);
+
+      // ✅ Always send CORS headers in response
+      res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+      res.header("Access-Control-Allow-Credentials", "true");
 
       try {
         if (!clean) throw new Error("Empty stdout");
