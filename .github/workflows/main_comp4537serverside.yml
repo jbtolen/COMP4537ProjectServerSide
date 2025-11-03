@@ -31,7 +31,8 @@ jobs:
           python-version: '3.11'
 
       # 4️⃣ Install Node + Python dependencies
-      - name: Install dependencies
+      # 4️⃣ Install Node + Python dependencies (optimized)
+      - name: Install dependencies (optimized)
         run: |
           echo "Installing Node packages..."
           npm ci
@@ -39,9 +40,16 @@ jobs:
           echo "Creating Python virtual environment..."
           python -m venv venv
           source venv/bin/activate
-          echo "Installing Python ML dependencies..."
+
+          echo "Installing lightweight Python ML dependencies..."
           pip install --upgrade pip
-          pip install torch torchvision transformers pillow
+          pip install torch torchvision transformers pillow \
+            --no-cache-dir \
+            --extra-index-url https://download.pytorch.org/whl/cpu
+
+          echo "Cleaning caches to free up space..."
+          sudo rm -rf ~/.cache/pip ~/.cache/huggingface /usr/share/dotnet /opt/ghc /usr/local/share/boost
+
 
       # 5️⃣ Build/test Node app (optional)
       - name: Build and test
