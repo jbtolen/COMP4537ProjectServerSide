@@ -18,7 +18,7 @@ class Server {
     this.startServer();
   }
 
-  // ✅ Middleware setup
+  // ✅ Middleware setupp
   configureMiddleware() {
     this.app.use(express.json());
     this.app.use(cookieParser());
@@ -27,7 +27,7 @@ class Server {
       origin: [
         "http://localhost:5500",
         "http://127.0.0.1:5500",
-        "https://comp4537projectclientside.onrender.com/index.html"
+        "https://comp4537projectclientside.netlify.app"
       ],
       credentials: true,
       optionsSuccessStatus: 200
