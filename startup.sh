@@ -1,18 +1,31 @@
-#!/usr/bin/env bash
-set -e
+#!/bin/bash
+echo "---- Setting up Python environment ----"
 
-# 1) Create a persistent venv under /home/site (survives restarts)
-if [ ! -d "/home/site/venv" ]; then
-  echo "🧪 Creating Python venv..."
-  python3 -m venv /home/site/venv
+# Detect environment (Azure or local)
+if [ -d "/home/site/wwwroot" ]; then
+  APP_HOME="/home/site/wwwroot"
+else
+  APP_HOME="$(pwd)"
 fi
 
-# 2) Activate venv and install Python deps
-source /home/site/venv/bin/activate
-python --version
-pip install --upgrade pip
-pip install -r requirements.txt
+echo "App home: $APP_HOME"
 
-# 3) Start Node app (runs under this shell, so venv stays active)
-echo "🚀 Starting Node server..."
+# ✅ Create and activate venv
+if [ ! -d "$APP_HOME/venv" ]; then
+  echo "Creating virtual environment..."
+  python3 -m venv "$APP_HOME/venv"
+fi
+
+source "$APP_HOME/venv/bin/activate"
+
+# ✅ Install dependencies
+if [ -f "$APP_HOME/requirements.txt" ]; then
+  echo "Installing requirements..."
+  pip install --upgrade pip
+  pip install -r "$APP_HOME/requirements.txt"
+else
+  echo "No requirements.txt found"
+fi
+
+echo "---- Starting Node.js server ----"
 npm start
