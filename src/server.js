@@ -27,7 +27,9 @@ class Server {
       origin: [
         "http://localhost:5500",
         "http://127.0.0.1:5500",
-        "https://comp4537projectclientside.netlify.app"
+        "https://comp4537projectclientside.netlify.app",
+        "https://comp4537clientside.onrender.com"
+  
       ],
       credentials: true,
       optionsSuccessStatus: 200
