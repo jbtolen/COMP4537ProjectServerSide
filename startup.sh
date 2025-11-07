@@ -1,25 +1,37 @@
 #!/bin/bash
 set -e
-echo "---- Azure Startup Script (force pip install) ----"
+echo "---- Azure Startup Script (with local venv) ----"
 
 cd /home/site/wwwroot || cd /home/site
 
-# --- Ensure pip exists ---
-if ! python3 -m pip --version &> /dev/null; then
-  echo "⚙️ Installing pip manually..."
+# --- Ensure Python3 exists ---
+python3 -V || echo "⚠️ Python3 not found!"
+
+# --- Create a local venv if missing ---
+if [ ! -d "venv" ]; then
+  echo "📦 Creating new virtual environment..."
+  python3 -m venv venv
+fi
+
+# --- Activate venv ---
+source venv/bin/activate
+
+# --- Ensure pip is available inside venv ---
+if ! python -m pip --version &> /dev/null; then
+  echo "⚙️ Installing pip into venv..."
   curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-  python3 get-pip.py --user
+  python get-pip.py
 fi
 
-# --- Install Python dependencies globally ---
+# --- Install dependencies into venv ---
 if [ -f "requirements.txt" ]; then
-  echo "Installing Python dependencies (with override)..."
-  python3 -m pip install --upgrade pip --user --break-system-packages
-  python3 -m pip install -r requirements.txt --user --break-system-packages
+  echo "Installing Python dependencies in venv..."
+  pip install --upgrade pip
+  pip install -r requirements.txt
 else
-  echo "⚠️ No requirements.txt found."
+  echo "⚠️ No requirements.txt found!"
 fi
 
-# --- Start Node.js server ---
+# --- Start Node.js app ---
 echo "---- Starting Node.js server ----"
 npm start
