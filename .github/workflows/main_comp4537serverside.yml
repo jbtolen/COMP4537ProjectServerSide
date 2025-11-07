@@ -23,6 +23,6 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: comp4537projectserverside     # <-- your app name
+          app-name: comp4537-projectserverside     # <-- your app name
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .
