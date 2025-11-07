@@ -1,30 +1,17 @@
 #!/bin/bash
-echo "---- Setting up Python environment ----"
+set -e
+echo "---- Azure Startup Script ----"
 
-# Detect environment (Azure or local)
-if [ -d "/home/site/wwwroot" ]; then
-  APP_HOME="/home/site/wwwroot"
+cd /home/site/wwwroot || cd /home/site
+
+echo "Installing Python dependencies globally (no venv)..."
+if command -v python3 &> /dev/null; then
+  python3 -m pip install --upgrade pip --user
+  if [ -f "requirements.txt" ]; then
+    python3 -m pip install -r requirements.txt --user
+  fi
 else
-  APP_HOME="$(pwd)"
-fi
-
-echo "App home: $APP_HOME"
-
-# ✅ Create and activate venv
-if [ ! -d "$APP_HOME/venv" ]; then
-  echo "Creating virtual environment..."
-  python3 -m venv "$APP_HOME/venv"
-fi
-
-source "$APP_HOME/venv/bin/activate"
-
-# ✅ Install dependencies
-if [ -f "$APP_HOME/requirements.txt" ]; then
-  echo "Installing requirements..."
-  pip install --upgrade pip
-  pip install -r "$APP_HOME/requirements.txt"
-else
-  echo "No requirements.txt found"
+  echo "⚠️ Python3 not found. You may need a hybrid Node+Python plan."
 fi
 
 echo "---- Starting Node.js server ----"
