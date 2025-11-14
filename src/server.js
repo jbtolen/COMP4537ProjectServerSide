@@ -116,12 +116,14 @@ class Server {
   }
 
   // ✅ Start the server
-  startServer() {
-    this.app.listen(this.PORT, () => {
-      console.log(`✅ API listening on port ${this.PORT}/api`);
-      console.log(`CORS allowed origins: ${this.corsOptions.origin.join(", ")}`);
-    });
-  }
+startServer() {
+  this.app.listen(this.PORT, () => {
+    console.log(`✅ API listening on port ${this.PORT}`);
+    console.log(`Base API path: /api`);
+    console.log(`CORS allowed origins: ${this.corsOptions.origin.join(", ")}`);
+  });
+}
+
 }
 
 // Start everything
