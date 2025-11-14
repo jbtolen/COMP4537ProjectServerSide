@@ -9,6 +9,16 @@
         "used": 0,
         "limit": 20
       }
+    },
+    {
+      "id": "10b64559-ed8e-4d85-8b66-2ac3fe07c930",
+      "email": "dingzq0807@gmail.com",
+      "passwordHash": "$2a$10$ZrCh4JzjeCtjQ9WvpvWite7/BmcumMVqeLjERxSSVWnPBqoSYVt.2",
+      "role": "user",
+      "usage": {
+        "used": 0,
+        "limit": 20
+      }
     }
   ]
 }
