@@ -18,6 +18,7 @@ class MLController {
     const corsOptions = {
       origin: [
         "https://comp4537projectclientside.onrender.com",
+        "https://comp4537projectclientside.netlify.app",
         "http://localhost:5500",
       ],
       credentials: true,
