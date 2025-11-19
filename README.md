@@ -36,6 +36,14 @@ Verify unauthenticated:
 - Legacy `data/db.json` accounts are imported automatically the first time the DB boots
 - To reset, stop the server and delete `data/app.db`
 
+## Usage tracking & quotas
+
+- Authenticated routes (e.g., `GET /api/auth/me`, `POST /api/ml/classify`) require a valid JWT via httpOnly cookie or `Authorization: Bearer`.
+- Every protected call increments the caller's `api_usage.used`, records the endpoint hit, and sets response headers:
+  - `X-API-Usage: used/limit`
+  - `X-API-Warning` when `used >= limit` (free tier limit reached; service still responds but the client should notify the user).
+- To test quickly, authenticate via `/api/auth/login`, keep the session cookie, and issue repeated `/api/ml/classify` requests while observing those headers.
+
 ## Config
 
 - `CLIENT_ORIGINS` — comma-separated list of exact allowed origins

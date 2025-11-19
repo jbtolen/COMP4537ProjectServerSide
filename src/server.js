@@ -3,6 +3,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const AppDatabase = require("./db");
 const AuthService = require("./auth");
+const createUsageMiddleware = require("./middleware/usage");
 const mlRouter = require("./ml");
 
 class Server {
@@ -48,6 +49,7 @@ class Server {
       cookieSecure: false
     });
     this.auth.seedAdmin();
+    this.usage = createUsageMiddleware(this.auth, this.db);
   }
 
   // ✅ Auth routes
@@ -77,19 +79,19 @@ class Server {
       }
     });
 
-    router.get("/auth/me", (req, res) => {
-      let token = req.cookies[this.auth.cookieName];
-      const authz = req.headers.authorization || "";
-      if (!token && authz.toLowerCase().startsWith("bearer ")) {
-        token = authz.slice(7).trim();
+    router.get(
+      "/auth/me",
+      this.usage.requireAuth,
+      this.usage.trackUsage("GET /api/auth/me"),
+      (req, res) => {
+        return res.status(200).json({
+          email: req.user.email,
+          role: req.user.role,
+          usage: req.user.usage,
+          warning: res.locals.apiUsageWarning || null
+        });
       }
-      if (!token) return res.status(401).json({ error: "Not authenticated" });
-      const payload = this.auth.verify(token);
-      if (!payload) return res.status(401).json({ error: "Invalid token" });
-      const profile = this.auth.getUserProfile(payload.sub);
-      if (!profile) return res.status(401).json({ error: "User not found" });
-      return res.status(200).json({ email: profile.email, role: profile.role, usage: profile.usage });
-    });
+    );
 
     router.post("/auth/logout", (req, res) => {
       res.clearCookie(this.auth.cookieName, this.auth.cookieOptions());
@@ -101,7 +103,14 @@ class Server {
 
   // ✅ Other routers (e.g., ML controller)
   registerRouters() {
-    this.app.use("/api/ml", mlRouter(this.db));
+    this.app.use(
+      "/api/ml",
+      mlRouter({
+        db: this.db,
+        requireAuth: this.usage?.requireAuth,
+        trackUsage: this.usage?.trackUsage
+      })
+    );
   }
 
   // ✅ Catch-all route to preserve CORS headers

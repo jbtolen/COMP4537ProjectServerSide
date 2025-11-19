@@ -7,8 +7,10 @@ const path = require("path");
 const fs = require("fs");
 
 class MLController {
-  constructor(db) {
-    this.db = db;
+  constructor(options = {}) {
+    this.db = options.db;
+    this.requireAuth = options.requireAuth;
+    this.trackUsage = options.trackUsage;
     this.router = express.Router();
     this.upload = multer({ dest: path.join(__dirname, "../uploads/") });
     this.setupCors();
@@ -30,11 +32,12 @@ class MLController {
   }
 
   registerRoutes() {
-    this.router.post(
-      "/classify",
-      this.upload.single("image"),
-      this.handleClassify.bind(this)
-    );
+    const middleware = [];
+    if (this.requireAuth) middleware.push(this.requireAuth);
+    if (this.trackUsage) middleware.push(this.trackUsage("POST /api/ml/classify"));
+    middleware.push(this.upload.single("image"), this.handleClassify.bind(this));
+
+    this.router.post("/classify", ...middleware);
   }
 
   resolvePythonPath() {
@@ -106,7 +109,7 @@ class MLController {
     try {
       this.db.saveClassification({
         id: uuidv4(),
-        userId: null,
+        userId: req.user?.id || null,
         imagePath: req.file?.originalname || req.file?.filename || null,
         resultJson: result,
         status: result?.error ? "failed" : "completed"
@@ -121,4 +124,4 @@ class MLController {
   }
 }
 
-module.exports = (db) => new MLController(db).getRouter();
+module.exports = (options) => new MLController(options).getRouter();
