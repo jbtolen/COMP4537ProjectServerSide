@@ -3,56 +3,60 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
 class AuthService {
-  constructor(store, options = {}) {
-    this.store = store;
+  constructor(db, options = {}) {
+    this.db = db;
     this.jwtSecret = options.jwtSecret || 'dev_secret_change_me';
     this.cookieName = options.cookieName || 'auth';
     this.cookieSecure = options.cookieSecure ?? false; // set true in prod HTTPS
   }
 
   seedAdmin() {
-    const db = this.store.read();
-    const exists = db.users.find(u => u.email === 'admin@admin.com');
-    if (!exists) {
-      const passwordHash = bcrypt.hashSync('111', 10);
-      db.users.push({
-        id: uuidv4(),
-        email: 'admin@admin.com',
-        passwordHash,
-        role: 'admin',
-        usage: { used: 0, limit: 20 }
-      });
-      this.store.write(db);
-      // eslint-disable-next-line no-console
-      console.log('Seeded admin user admin@admin.com / 111');
-    }
+    const existing = this.db.getUserByEmail('admin@admin.com');
+    if (existing) return existing;
+
+    const passwordHash = bcrypt.hashSync('111', 10);
+    const admin = this.db.createUser({
+      id: uuidv4(),
+      email: 'admin@admin.com',
+      passwordHash,
+      role: 'admin',
+      quotaLimit: 20
+    });
+    // eslint-disable-next-line no-console
+    console.log('Seeded admin user admin@admin.com / 111');
+    return admin;
   }
 
   register(email, password) {
-    const db = this.store.read();
-    const exists = db.users.find(u => u.email === email);
-    if (exists) throw new Error('Email already registered');
+    const normalizedEmail = String(email).toLowerCase();
+    const existing = this.db.getUserByEmail(normalizedEmail);
+    if (existing) throw new Error('Email already registered');
+
     const passwordHash = bcrypt.hashSync(password, 10);
-    const user = {
+    const user = this.db.createUser({
       id: uuidv4(),
-      email,
+      email: normalizedEmail,
       passwordHash,
       role: 'user',
-      usage: { used: 0, limit: 20 }
-    };
-    db.users.push(user);
-    this.store.write(db);
+      quotaLimit: 20
+    });
     return { id: user.id, email: user.email, role: user.role };
   }
 
   login(email, password) {
-    const db = this.store.read();
-    const user = db.users.find(u => u.email === email);
+    const normalizedEmail = String(email).toLowerCase();
+    const user = this.db.getUserByEmail(normalizedEmail);
     if (!user) throw new Error('Invalid credentials');
     const ok = bcrypt.compareSync(password, user.passwordHash);
     if (!ok) throw new Error('Invalid credentials');
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, this.jwtSecret, { expiresIn: '2h' });
-    return { token, user };
+    return { token, user: this.#publicUser(user) };
+  }
+
+  getUserProfile(userId) {
+    const user = this.db.getUserById(userId);
+    if (!user) return null;
+    return this.#publicUser(user);
   }
 
   verify(token) {
@@ -70,6 +74,15 @@ class AuthService {
       secure: this.cookieSecure,
       path: '/',
       maxAge: 2 * 60 * 60 * 1000
+    };
+  }
+
+  #publicUser(user) {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      usage: user.usage
     };
   }
 }

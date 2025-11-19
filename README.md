@@ -31,8 +31,10 @@ Verify unauthenticated:
 
 ## Storage
 
-- JSON file at `server/data/db.json` (auto-created)
-- To reset, stop server and delete that file
+- SQLite database at `server/data/app.db` (auto-created)
+- Tables: `users`, `api_usage`, `endpoint_stats`, `classifications`
+- Legacy `data/db.json` accounts are imported automatically the first time the DB boots
+- To reset, stop the server and delete `data/app.db`
 
 ## Config
 

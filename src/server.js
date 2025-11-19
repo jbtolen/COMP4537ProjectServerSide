@@ -1,8 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const path = require("path");
-const JsonStore = require("./store");
+const AppDatabase = require("./db");
 const AuthService = require("./auth");
 const mlRouter = require("./ml");
 
@@ -43,9 +42,8 @@ class Server {
 
   // ✅ Auth setup
   initializeAuth() {
-    const storePath = path.join(__dirname, "..", "data", "db.json");
-    this.store = new JsonStore(storePath);
-    this.auth = new AuthService(this.store, {
+    this.db = new AppDatabase();
+    this.auth = new AuthService(this.db, {
       jwtSecret: process.env.JWT_SECRET || "dev_secret_change_me",
       cookieSecure: false
     });
@@ -88,10 +86,9 @@ class Server {
       if (!token) return res.status(401).json({ error: "Not authenticated" });
       const payload = this.auth.verify(token);
       if (!payload) return res.status(401).json({ error: "Invalid token" });
-      const db = this.store.read();
-      const user = db.users.find((u) => u.id === payload.sub);
-      if (!user) return res.status(401).json({ error: "User not found" });
-      return res.status(200).json({ email: user.email, role: user.role, usage: user.usage });
+      const profile = this.auth.getUserProfile(payload.sub);
+      if (!profile) return res.status(401).json({ error: "User not found" });
+      return res.status(200).json({ email: profile.email, role: profile.role, usage: profile.usage });
     });
 
     router.post("/auth/logout", (req, res) => {
@@ -104,7 +101,7 @@ class Server {
 
   // ✅ Other routers (e.g., ML controller)
   registerRouters() {
-    this.app.use("/api/ml", mlRouter);
+    this.app.use("/api/ml", mlRouter(this.db));
   }
 
   // ✅ Catch-all route to preserve CORS headers
