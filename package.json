@@ -8,6 +8,7 @@
     "dev": "node src/server.js"
   },
   "dependencies": {
+    "@gradio/client": "^2.0.0-dev.2",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.4.1",
     "cookie-parser": "^1.4.6",
@@ -15,6 +16,7 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "readable-stream": "^4.7.0",
     "uuid": "^9.0.1"
   }
 }

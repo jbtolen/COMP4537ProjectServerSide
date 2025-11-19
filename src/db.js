@@ -162,23 +162,32 @@ class AppDatabase {
     return this.#mapUser(this.statements.userById.get(id));
   }
 
-  createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimit = 20 }) {
-    const tx = this.connection.transaction(() => {
-      this.statements.insertUser.run({
-        id,
-        email,
-        password_hash: passwordHash,
-        first_name: firstName,
-        role
-      });
-      this.statements.insertUsage.run({
-        user_id: id,
-        quota_limit: quotaLimit
-      });
+createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimit = 20 }) {
+  console.log("🧵 Creating User in DB:", email);  // ADD TO DEBUG
+
+  const tx = this.connection.transaction(() => {
+    this.statements.insertUser.run({
+      id,
+      email,
+      password_hash: passwordHash,
+      first_name: firstName,
+      role
     });
-    tx();
-    return this.getUserById(id);
-  }
+    this.statements.insertUsage.run({
+      user_id: id,
+      quota_limit: quotaLimit
+    });
+  });
+
+  tx();
+
+  // Check if really saved
+  const test = this.getUserById(id);
+  console.log("🧪 DB RESULT AFTER INSERT:", test);
+
+  return test;
+}
+
 
   ensureUsageRow(userId, quotaLimit = 20, used = 0) {
     this.statements.ensureUsage.run(userId, quotaLimit, used);

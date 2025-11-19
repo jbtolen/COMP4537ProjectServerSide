@@ -4,7 +4,7 @@ const cookieParser = require("cookie-parser");
 const AppDatabase = require("./db");
 const AuthService = require("./auth");
 const createUsageMiddleware = require("./middleware/usage");
-const mlRouter = require("./ml");
+const MLController = require("./ml");  // get the class
 
 class Server {
   constructor() {
@@ -33,12 +33,15 @@ class Server {
 
       ],
       credentials: true,
+      allowedHeaders: ["Authorization", "Content-Type"],
+        methods: ["GET", "POST", "OPTIONS"], 
       optionsSuccessStatus: 200
     };
 
     this.corsOptions = corsOptions;
     this.app.use(cors(corsOptions));
     this.app.options("*", cors(corsOptions));
+    
   }
 
   // ✅ Auth setup
@@ -102,16 +105,17 @@ class Server {
   }
 
   // ✅ Other routers (e.g., ML controller)
-  registerRouters() {
-    this.app.use(
-      "/api/ml",
-      mlRouter({
-        db: this.db,
-        requireAuth: this.usage?.requireAuth,
-        trackUsage: this.usage?.trackUsage
-      })
-    );
-  }
+// 🚀 FIXED ML ROUTER INIT
+registerRouters() {
+  const ml = new MLController({
+    db: this.db,
+    requireAuth: this.usage?.requireAuth,
+    trackUsage: this.usage?.trackUsage
+  });
+
+  this.app.use("/api/ml", ml.router);  // ✔ correct now
+}
+
 
   // ✅ Catch-all route to preserve CORS headers
   catchAll() {
