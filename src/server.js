@@ -4,7 +4,7 @@ const cookieParser = require("cookie-parser");
 const AppDatabase = require("./db");
 const AuthService = require("./auth");
 const createUsageMiddleware = require("./middleware/usage");
-const MLController = require("./ml");  // get the class
+const MLController = require("./ml");  // ML router
 
 class Server {
   constructor() {
@@ -18,11 +18,12 @@ class Server {
     this.startServer();
   }
 
-  // ✅ Middleware setupp
+  // 🚀 MIDDLEWARE SETUP (IMPORTANT!)
   configureMiddleware() {
     this.app.use(express.json());
     this.app.use(cookieParser());
 
+    // --- CORS Options ---
     const corsOptions = {
       origin: [
         "http://localhost:5500",
@@ -30,38 +31,47 @@ class Server {
         "https://comp4537projectclientside.netlify.app",
         "https://comp4537projectclientside.onrender.com",
         "https://comp4537clientside.onrender.com"
-
       ],
       credentials: true,
       allowedHeaders: ["Authorization", "Content-Type"],
-        methods: ["GET", "POST", "OPTIONS"], 
-      optionsSuccessStatus: 200
+      methods: ["GET", "POST", "OPTIONS"],
+      optionsSuccessStatus: 200,
     };
 
     this.corsOptions = corsOptions;
     this.app.use(cors(corsOptions));
-    this.app.options("*", cors(corsOptions));
-    
+    this.app.options("*", cors(corsOptions)); // handle preflight
+
+    // ❗ IMPORTANT: Force CORS headers on all responses
+    this.app.use((req, res, next) => {
+      res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      next();
+    });
   }
 
-  // ✅ Auth setup
+  // 🔐 AUTH SETUP
   initializeAuth() {
     this.db = new AppDatabase();
     this.auth = new AuthService(this.db, {
       jwtSecret: process.env.JWT_SECRET || "dev_secret_change_me",
-      cookieSecure: false
+      cookieSecure: false,
     });
     this.auth.seedAdmin();
     this.usage = createUsageMiddleware(this.auth, this.db);
   }
 
-  // ✅ Auth routes
+  // 🔑 AUTH ROUTES
   registerAuthRoutes() {
     const router = express.Router();
 
     router.post("/auth/register", (req, res) => {
       const { email, password } = req.body || {};
-      if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+      if (!email || !password)
+        return res.status(400).json({ error: "Email and password required" });
+
       try {
         const dto = this.auth.register(String(email).toLowerCase(), String(password));
         return res.status(200).json(dto);
@@ -72,7 +82,9 @@ class Server {
 
     router.post("/auth/login", (req, res) => {
       const { email, password } = req.body || {};
-      if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+      if (!email || !password)
+        return res.status(400).json({ error: "Email and password required" });
+
       try {
         const { token, user } = this.auth.login(String(email).toLowerCase(), String(password));
         res.cookie(this.auth.cookieName, token, this.auth.cookieOptions());
@@ -91,7 +103,7 @@ class Server {
           email: req.user.email,
           role: req.user.role,
           usage: req.user.usage,
-          warning: res.locals.apiUsageWarning || null
+          warning: res.locals.apiUsageWarning || null,
         });
       }
     );
@@ -104,20 +116,18 @@ class Server {
     this.app.use("/api", router);
   }
 
-  // ✅ Other routers (e.g., ML controller)
-// 🚀 FIXED ML ROUTER INIT
-registerRouters() {
-  const ml = new MLController({
-    db: this.db,
-    requireAuth: this.usage?.requireAuth,
-    trackUsage: this.usage?.trackUsage
-  });
+  // 🧠 ML ROUTES
+  registerRouters() {
+    const ml = new MLController({
+      db: this.db,
+      requireAuth: this.usage?.requireAuth,
+      trackUsage: this.usage?.trackUsage,
+    });
 
-  this.app.use("/api/ml", ml.router);  // ✔ correct now
-}
+    this.app.use("/api/ml", ml.router);
+  }
 
-
-  // ✅ Catch-all route to preserve CORS headers
+  // 🔚 404 + CORS PRESERVED
   catchAll() {
     this.app.use((req, res) => {
       res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
@@ -126,16 +136,14 @@ registerRouters() {
     });
   }
 
-  // ✅ Start the server
-startServer() {
-  this.app.listen(this.PORT, () => {
-    console.log(`✅ API listening on port ${this.PORT}`);
-    console.log(`Base API path: /api`);
-    console.log(`CORS allowed origins: ${this.corsOptions.origin.join(", ")}`);
-  });
+  // 🚀 START SERVER
+  startServer() {
+    this.app.listen(this.PORT, () => {
+      console.log(`✅ API running on port ${this.PORT}`);
+      console.log(`🌍 CORS allowed: ${this.corsOptions.origin.join(", ")}`);
+    });
+  }
 }
 
-}
-
-// Start everything
+// Boot the server
 new Server();
