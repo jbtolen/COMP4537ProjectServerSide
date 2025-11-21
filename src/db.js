@@ -209,6 +209,9 @@ createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimi
       result_json: typeof resultJson === 'string' ? resultJson : JSON.stringify(resultJson),
       status
     });
+  
+  const count = this.connection.prepare("SELECT COUNT(*) AS total FROM classifications").get();
+  console.log("📊 TOTAL CLASSIFICATIONS IN DB:", count.total);
   }
 
   #mapUser(row) {

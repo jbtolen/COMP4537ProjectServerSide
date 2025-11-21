@@ -125,6 +125,15 @@ class Server {
     });
 
     this.app.use("/api/ml", ml.router);
+    this.app.get("/api/ml/debug-count", (req, res) => {
+    try {
+      const db = this.db.connection;  // <-- direct access
+      const row = db.prepare("SELECT COUNT(*) AS count FROM classifications").get();
+      return res.json({ total: row.count });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
   }
 
   // 🔚 404 + CORS PRESERVED
