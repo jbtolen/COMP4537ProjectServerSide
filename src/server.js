@@ -125,13 +125,15 @@ class Server {
     });
 
     this.app.use("/api/ml", ml.router);
-    this.app.get("/api/ml/debug-count", (req, res) => {
+  this.app.get("/api/ml/mine", this.usage.requireAuth, (req, res) => {
     try {
-      const db = this.db.connection;  // <-- direct access
-      const row = db.prepare("SELECT COUNT(*) AS count FROM classifications").get();
-      return res.json({ total: row.count });
+      const rows = this.db.connection
+        .prepare("SELECT * FROM classifications WHERE user_id = ? ORDER BY created_at DESC")
+        .all(req.user.id);
+
+      res.json(rows);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message });
     }
   });
   }
