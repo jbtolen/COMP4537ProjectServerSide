@@ -3,16 +3,18 @@ const path = require('path');
 const Database = require('better-sqlite3');
 
 class AppDatabase {
-  constructor(dbFilePath = path.join(__dirname, '..', 'data', 'app.db')) {
-    this.dbFilePath = dbFilePath;
-    this.#ensureDirectory();
-    this.connection = new Database(this.dbFilePath);
-    this.connection.pragma('foreign_keys = ON');
-    this.connection.pragma('journal_mode = WAL');
-    this.#migrate();
-    this.#hydrateLegacyJson();
-    this.#prepareStatements();
-  }
+constructor(dbFilePath = process.env.DB_PATH || path.join("/home", "data", "app.db")) {
+  this.dbFilePath = dbFilePath;
+  console.log("📀 USING SQLITE DB AT:", this.dbFilePath);   // DEBUG
+  this.#ensureDirectory();
+  this.connection = new Database(this.dbFilePath);
+  this.connection.pragma('foreign_keys = ON');
+  this.connection.pragma('journal_mode = WAL');
+  this.#migrate();
+  this.#hydrateLegacyJson();
+  this.#prepareStatements();
+}
+
 
   #ensureDirectory() {
     const dir = path.dirname(this.dbFilePath);
