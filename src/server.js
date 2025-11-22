@@ -111,7 +111,64 @@ class Server {
       res.clearCookie(this.auth.cookieName, this.auth.cookieOptions());
       return res.status(200).json({ ok: true });
     });
+    
+    const requireAdmin = (req, res, next) => {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      next();
+    };
 
+    // ENDPOINT 1: Get API endpoint statistics
+    router.get('/admin/stats', 
+      this.usage.requireAuth,
+      requireAdmin,
+      (req, res) => {
+        try {
+          const endpointStats = this.db.connection
+            .prepare(`
+              SELECT 
+                method,
+                path as endpoint,
+                request_count as requests
+              FROM endpoint_stats 
+              ORDER BY request_count DESC
+            `)
+            .all();
+          
+          res.json({ endpoints: endpointStats });
+        } catch (err) {
+          console.error('Admin stats error:', err);
+          res.status(500).json({ error: 'Failed to fetch statistics' });
+        }
+      }
+    );
+
+    // ENDPOINT 2: Get all users and their API usage
+    router.get('/admin/users', 
+      this.usage.requireAuth,
+      requireAdmin,
+      (req, res) => {
+        try {
+          const userStats = this.db.connection.prepare(`
+            SELECT 
+              u.email,
+              u.first_name as username,
+              u.role,
+              au.used as totalRequests,
+              au.quota_limit as quotaLimit
+            FROM users u
+            LEFT JOIN api_usage au ON u.id = au.user_id
+            ORDER BY au.used DESC
+          `).all();
+          
+          res.json({ users: userStats });
+        } catch (err) {
+          console.error('Admin users error:', err);
+          res.status(500).json({ error: 'Failed to fetch user statistics' });
+        }
+      }
+    );
     this.app.use("/api", router);
   }
 
