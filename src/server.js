@@ -4,7 +4,8 @@ const cookieParser = require("cookie-parser");
 const AppDatabase = require("./db");
 const AuthService = require("./auth");
 const createUsageMiddleware = require("./middleware/usage");
-const MLController = require("./ml");  // ML router
+const MLController = require("./ml"); 
+const swaggerDocs = require("./swagger");
 
 class Server {
   constructor() {
@@ -14,6 +15,7 @@ class Server {
     this.initializeAuth();
     this.registerAuthRoutes();
     this.registerRouters();
+    swaggerDocs(this.app);
     this.catchAll();
     this.startServer();
   }
@@ -64,113 +66,186 @@ class Server {
   }
 
   // 🔑 AUTH ROUTES
-  registerAuthRoutes() {
-    const router = express.Router();
+// 🔑 AUTH ROUTES  
+registerAuthRoutes() {
+  const router = express.Router();
 
-    router.post("/auth/register", (req, res) => {
-      const { email, password } = req.body || {};
-      if (!email || !password)
-        return res.status(400).json({ error: "Email and password required" });
+  /**
+   * @swagger
+   * /api/auth/register:
+   *   post:
+   *     summary: Register a new user
+   *     tags:
+   *       - Auth
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           example:
+   *             email: "test@gmail.com"
+   *             password: "123"
+   *     responses:
+   *       200:
+   *         description: User registered successfully
+   *         content:
+   *           application/json:
+   *             example:
+   *               id: "uuid-v4"
+   *               email: "test@gmail.com"
+   *               role: "user"
+   */
+  router.post("/auth/register", (req, res) => {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
+    try {
+      const dto = this.auth.register(String(email).toLowerCase(), String(password));
+      return res.status(200).json(dto);
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  });
 
-      try {
-        const dto = this.auth.register(String(email).toLowerCase(), String(password));
-        return res.status(200).json(dto);
-      } catch (e) {
-        return res.status(400).json({ error: e.message });
-      }
+  /**
+   * @swagger
+   * /api/auth/login:
+   *   post:
+   *     summary: Login with email and password
+   *     tags:
+   *       - Auth
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           example:
+   *             email: "test@gmail.com"
+   *             password: "123"
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             example:
+   *               email: "test@gmail.com"
+   *               role: "user"
+   *               token: "jwt_token_here"
+   */
+  router.post("/auth/login", (req, res) => {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
+    try {
+      const { token, user } = this.auth.login(String(email).toLowerCase(), String(password));
+      res.cookie(this.auth.cookieName, token, this.auth.cookieOptions());
+      return res.status(200).json({ email: user.email, role: user.role, token });
+    } catch (e) {
+      return res.status(401).json({ error: e.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/auth/me:
+   *   get:
+   *     summary: Get the logged-in user's profile
+   *     tags:
+   *       - Auth
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: User profile data
+   *         content:
+   *           application/json:
+   *             example:
+   *               email: "test@gmail.com"
+   *               role: "user"
+   *               usage:
+   *                 used: 2
+   *                 limit: 20
+   */
+  router.get("/auth/me", this.usage.requireAuth, (req, res) => {
+    return res.status(200).json({
+      email: req.user.email,
+      role: req.user.role,
+      usage: req.user.usage,
+      warning: res.locals.apiUsageWarning || null,
     });
+  });
 
-    router.post("/auth/login", (req, res) => {
-      const { email, password } = req.body || {};
-      if (!email || !password)
-        return res.status(400).json({ error: "Email and password required" });
+  /**
+   * @swagger
+   * /api/auth/logout:
+   *   post:
+   *     summary: Logout user (clear cookie)
+   *     tags:
+   *       - Auth
+   *     responses:
+   *       200:
+   *         description: Logged out successfully
+   */
+  router.post("/auth/logout", (req, res) => {
+    res.clearCookie(this.auth.cookieName, this.auth.cookieOptions());
+    return res.status(200).json({ ok: true });
+  });
 
-      try {
-        const { token, user } = this.auth.login(String(email).toLowerCase(), String(password));
-        res.cookie(this.auth.cookieName, token, this.auth.cookieOptions());
-        return res.status(200).json({ email: user.email, role: user.role, token });
-      } catch (e) {
-        return res.status(401).json({ error: e.message });
-      }
-    });
+  // --- ADMIN ROUTES (need auth + admin role) ---
 
-    router.get(
-      "/auth/me",
-      this.usage.requireAuth,
-      (req, res) => {
-        return res.status(200).json({
-          email: req.user.email,
-          role: req.user.role,
-          usage: req.user.usage,
-          warning: res.locals.apiUsageWarning || null,
-        });
-      }
-    );
+  /**
+   * @swagger
+   * /api/admin/stats:
+   *   get:
+   *     summary: Get API endpoint call statistics
+   *     tags:
+   *       - Admin
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Stats of API usage per endpoint
+   */
+  router.get("/admin/stats", this.usage.requireAuth, requireAdmin, (req, res) => {
+    try {
+      const endpointStats = this.db.connection
+        .prepare(`SELECT method, path AS endpoint, request_count AS requests FROM endpoint_stats`)
+        .all();
+      res.json({ endpoints: endpointStats });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
 
-    router.post("/auth/logout", (req, res) => {
-      res.clearCookie(this.auth.cookieName, this.auth.cookieOptions());
-      return res.status(200).json({ ok: true });
-    });
-    
-    const requireAdmin = (req, res, next) => {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-      }
-      next();
-    };
+  /**
+   * @swagger
+   * /api/admin/users:
+   *   get:
+   *     summary: Get all users and their usage stats
+   *     tags:
+   *       - Admin
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: List of users and their API usage
+   */
+  router.get("/admin/users", this.usage.requireAuth, requireAdmin, (req, res) => {
+    try {
+      const userStats = this.db.connection.prepare(`
+        SELECT u.email, u.role, au.used AS totalRequests, au.quota_limit AS quotaLimit
+        FROM users u
+        LEFT JOIN api_usage au ON u.id = au.user_id
+      `).all();
+      res.json({ users: userStats });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch user statistics" });
+    }
+  });
 
-    // ENDPOINT 1: Get API endpoint statistics
-    router.get('/admin/stats', 
-      this.usage.requireAuth,
-      requireAdmin,
-      (req, res) => {
-        try {
-          const endpointStats = this.db.connection
-            .prepare(`
-              SELECT 
-                method,
-                path as endpoint,
-                request_count as requests
-              FROM endpoint_stats 
-              ORDER BY request_count DESC
-            `)
-            .all();
-          
-          res.json({ endpoints: endpointStats });
-        } catch (err) {
-          console.error('Admin stats error:', err);
-          res.status(500).json({ error: 'Failed to fetch statistics' });
-        }
-      }
-    );
+  this.app.use("/api", router);
+}
 
-    // ENDPOINT 2: Get all users and their API usage
-    router.get('/admin/users', 
-      this.usage.requireAuth,
-      requireAdmin,
-      (req, res) => {
-        try {
-          const userStats = this.db.connection.prepare(`
-            SELECT 
-              u.email,
-              u.first_name as username,
-              u.role,
-              au.used as totalRequests,
-              au.quota_limit as quotaLimit
-            FROM users u
-            LEFT JOIN api_usage au ON u.id = au.user_id
-            ORDER BY au.used DESC
-          `).all();
-          
-          res.json({ users: userStats });
-        } catch (err) {
-          console.error('Admin users error:', err);
-          res.status(500).json({ error: 'Failed to fetch user statistics' });
-        }
-      }
-    );
-    this.app.use("/api", router);
-  }
 
   // 🧠 ML ROUTES
   registerRouters() {

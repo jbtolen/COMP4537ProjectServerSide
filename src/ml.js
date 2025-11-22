@@ -42,6 +42,37 @@ class MLController {
     if (this.trackUsage) middleware.push(this.trackUsage("POST /api/ml/classify"));
     
     middleware.push(this.upload.single("image"), this.handleClassify.bind(this));
+    /**
+ * @swagger
+ * /api/ml/classify:
+ *   post:
+ *     summary: Upload an image for ML classification
+ *     tags:
+ *       - ML
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image to classify
+ *     responses:
+ *       200:
+ *         description: Classification result
+ *         content:
+ *           application/json:
+ *             example:
+ *               model_output: { class: "paper", confidence: 0.92 }
+ *               classification_id: "uuid-v4"
+ */
+this.router.post("/classify", ...middleware);
+
 
     this.router.post("/classify", ...middleware);
   }
