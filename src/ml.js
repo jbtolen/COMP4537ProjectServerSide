@@ -5,7 +5,8 @@ const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
-const { Client, handle_file } = require("@gradio/client");
+
+let Client, handle_file;
 
 class MLController {
   constructor(options = {}) {
@@ -56,15 +57,21 @@ class MLController {
     const imgPath = req.file.path;
     console.log("📸 Image saved at:", imgPath);
 
-    try {
-      const client = await Client.connect("jbtolen/PythonService");
-      console.log("🌐 Connected to Hugging Face …");
-      
-      const result = await client.predict("/predict", {
-        image: handle_file(imgPath),
-      });
+  try {
+    // Dynamically import @gradio/client (ES module)
+    if (!Client) {
+      const gradio = await import("@gradio/client");
+      Client = gradio.Client;
+      handle_file = gradio.handle_file;
+    }
+    
+    const client = await Client.connect("jbtolen/PythonService");
+    console.log("🌐 Connected to Hugging Face");
 
-      console.log("🧠 Model Output:", result.data);
+    const result = await client.predict("/predict", {
+      image: handle_file(imgPath),
+    });
+    console.log("🧠 HF Prediction:", result.data);
 
       // 🧹 Delete temp file
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
