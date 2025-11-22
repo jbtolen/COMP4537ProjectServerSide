@@ -97,7 +97,6 @@ class Server {
     router.get(
       "/auth/me",
       this.usage.requireAuth,
-      this.usage.trackUsage("GET /api/auth/me"),
       (req, res) => {
         return res.status(200).json({
           email: req.user.email,
