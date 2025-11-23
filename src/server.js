@@ -82,12 +82,16 @@ class Server {
      *         description: Successfully registered
      */
     router.post("/auth/register", (req, res) => {
-      const { email, password } = req.body || {};
-      if (!email || !password)
-        return res.status(400).json({ error: "Email and password required" });
+      const { email, password, firstName } = req.body || {};
+      if (!email || !password || !firstName)
+        return res.status(400).json({ error: "First name, email, and password required" });
 
       try {
-        const dto = this.auth.register(String(email).toLowerCase(), String(password));
+        const dto = this.auth.register(
+          String(email).toLowerCase(),
+          String(password),
+          String(firstName).trim()
+        );
         return res.status(200).json(dto);
       } catch (e) {
         return res.status(400).json({ error: e.message });

@@ -170,7 +170,7 @@ class AppDatabase {
          ORDER BY request_count DESC`
       ),
       userUsageStats: this.connection.prepare(
-        `SELECT u.email, u.id, au.used, au.quota_limit
+        `SELECT u.email, u.id, u.first_name, au.used, au.quota_limit
          FROM users u
          LEFT JOIN api_usage au ON au.user_id = u.id
          ORDER BY au.used DESC, u.email ASC`
@@ -255,6 +255,8 @@ class AppDatabase {
     return this.statements.userUsageStats.all().map((row) => ({
       email: row.email,
       userId: row.id,
+      firstName: row.first_name,
+      token: row.id,
       used: row.used ?? 0,
       limit: row.quota_limit ?? 20
     }));

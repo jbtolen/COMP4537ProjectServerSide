@@ -27,7 +27,7 @@ class AuthService {
     return admin;
   }
 
-  register(email, password) {
+  register(email, password, firstName = null) {
     const normalizedEmail = String(email).toLowerCase();
     const existing = this.db.getUserByEmail(normalizedEmail);
     if (existing) throw new Error('Email already registered');
@@ -37,10 +37,11 @@ class AuthService {
       id: uuidv4(),
       email: normalizedEmail,
       passwordHash,
+      firstName,
       role: 'user',
       quotaLimit: 20
     });
-    return { id: user.id, email: user.email, role: user.role };
+    return { id: user.id, email: user.email, role: user.role, firstName: user.firstName };
   }
 
   login(email, password) {
@@ -82,6 +83,7 @@ class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      firstName: user.firstName,
       usage: user.usage
     };
   }
