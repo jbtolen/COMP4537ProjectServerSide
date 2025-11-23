@@ -147,6 +147,7 @@ class Server {
       (req, res) => {
         return res.status(200).json({
           email: req.user.email,
+          firstName: req.user.firstName || (req.user.email ? req.user.email.split("@")[0] : null),
           role: req.user.role,
           usage: req.user.usage,
           warning: res.locals.apiUsageWarning || null

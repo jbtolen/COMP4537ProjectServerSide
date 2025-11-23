@@ -1,50 +1,10 @@
 const express = require("express");
-const { v4: uuidv4 } = require("uuid");
 
 const createClassificationsRouter = ({ db, usage }) => {
   if (!db || !usage) throw new Error("Classifications router requires db and usage middleware");
   const router = express.Router();
   const requireAuth = usage.requireAuth;
   const trackUsage = usage.trackUsage;
-
-  /**
-   * @swagger
-   * /api/classifications:
-   *   post:
-   *     summary: Create a classification record
-   *     tags: [Classifications]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           example:
-   *             imagePath: "dummy.png"
-   *             result: { label: "paper", confidence: 0.9 }
-   *             status: "completed"
-   *     responses:
-   *       201:
-   *         description: Created
-   */
-  router.post(
-    "/",
-    requireAuth,
-    trackUsage(),
-    (req, res) => {
-      const { imagePath = null, result = {}, status = "completed" } = req.body || {};
-      const id = uuidv4();
-      db.saveClassification({
-        id,
-        userId: req.user.id,
-        imagePath,
-        resultJson: result,
-        status
-      });
-      const saved = db.getClassification(id);
-      return res.status(201).json(saved);
-    }
-  );
 
   /**
    * @swagger
