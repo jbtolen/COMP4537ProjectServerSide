@@ -97,10 +97,8 @@ class AppDatabase {
           });
         });
       })();
-      // eslint-disable-next-line no-console
       console.log(`Imported ${parsed.users.length} users from legacy JSON store.`);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn('Legacy JSON import skipped:', err.message);
     }
   }
@@ -150,6 +148,32 @@ class AppDatabase {
       insertClassification: this.connection.prepare(
         `INSERT INTO classifications (id, user_id, image_path, result_json, status)
          VALUES (@id, @user_id, @image_path, @result_json, @status)`
+      ),
+      classificationsByUser: this.connection.prepare(
+        `SELECT * FROM classifications WHERE user_id = ? ORDER BY datetime(created_at) DESC`
+      ),
+      classificationById: this.connection.prepare(
+        `SELECT * FROM classifications WHERE id = ?`
+      ),
+      updateClassification: this.connection.prepare(
+        `UPDATE classifications
+         SET result_json = COALESCE(@result_json, result_json),
+             status = COALESCE(@status, status)
+         WHERE id = @id`
+      ),
+      deleteClassification: this.connection.prepare(
+        `DELETE FROM classifications WHERE id = ?`
+      ),
+      endpointStats: this.connection.prepare(
+        `SELECT method, path AS endpoint, request_count AS requests, last_call_at
+         FROM endpoint_stats
+         ORDER BY request_count DESC`
+      ),
+      userUsageStats: this.connection.prepare(
+        `SELECT u.email, u.id, au.used, au.quota_limit
+         FROM users u
+         LEFT JOIN api_usage au ON au.user_id = u.id
+         ORDER BY au.used DESC, u.email ASC`
       )
     };
   }
@@ -162,32 +186,23 @@ class AppDatabase {
     return this.#mapUser(this.statements.userById.get(id));
   }
 
-createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimit = 20 }) {
-  console.log("🧵 Creating User in DB:", email);  // ADD TO DEBUG
-
-  const tx = this.connection.transaction(() => {
-    this.statements.insertUser.run({
-      id,
-      email,
-      password_hash: passwordHash,
-      first_name: firstName,
-      role
+  createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimit = 20 }) {
+    const tx = this.connection.transaction(() => {
+      this.statements.insertUser.run({
+        id,
+        email,
+        password_hash: passwordHash,
+        first_name: firstName,
+        role
+      });
+      this.statements.insertUsage.run({
+        user_id: id,
+        quota_limit: quotaLimit
+      });
     });
-    this.statements.insertUsage.run({
-      user_id: id,
-      quota_limit: quotaLimit
-    });
-  });
-
-  tx();
-
-  // Check if really saved
-  const test = this.getUserById(id);
-  console.log("🧪 DB RESULT AFTER INSERT:", test);
-
-  return test;
-}
-
+    tx();
+    return this.getUserById(id);
+  }
 
   ensureUsageRow(userId, quotaLimit = 20, used = 0) {
     this.statements.ensureUsage.run(userId, quotaLimit, used);
@@ -209,9 +224,40 @@ createUser({ id, email, passwordHash, firstName = null, role = 'user', quotaLimi
       result_json: typeof resultJson === 'string' ? resultJson : JSON.stringify(resultJson),
       status
     });
-  
-  const count = this.connection.prepare("SELECT COUNT(*) AS total FROM classifications").get();
-  console.log("📊 TOTAL CLASSIFICATIONS IN DB:", count.total);
+  }
+
+  listClassificationsByUser(userId) {
+    return this.statements.classificationsByUser.all(userId);
+  }
+
+  getClassification(id) {
+    return this.statements.classificationById.get(id);
+  }
+
+  updateClassification(id, { resultJson, status }) {
+    this.statements.updateClassification.run({
+      id,
+      result_json: resultJson ? (typeof resultJson === 'string' ? resultJson : JSON.stringify(resultJson)) : null,
+      status: status || null
+    });
+    return this.getClassification(id);
+  }
+
+  deleteClassification(id) {
+    return this.statements.deleteClassification.run(id).changes > 0;
+  }
+
+  getEndpointStats() {
+    return this.statements.endpointStats.all();
+  }
+
+  getUserUsageStats() {
+    return this.statements.userUsageStats.all().map((row) => ({
+      email: row.email,
+      userId: row.id,
+      used: row.used ?? 0,
+      limit: row.quota_limit ?? 20
+    }));
   }
 
   #mapUser(row) {

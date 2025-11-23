@@ -10,6 +10,15 @@ const options = {
       version: "1.0.0",
       description: "API service for COMP4977 project using Node.js",
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
     servers: [
       {
         url: "https://comp4537projectserverside.azurewebsites.net/api"  // CHANGE THIS!

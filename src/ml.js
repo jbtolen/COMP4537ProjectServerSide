@@ -39,7 +39,7 @@ class MLController {
     const middleware = [];
 
     if (this.requireAuth) middleware.push(this.requireAuth); // 🔐 Only if logged-in user
-    if (this.trackUsage) middleware.push(this.trackUsage("POST /api/ml/classify"));
+    if (this.trackUsage) middleware.push(this.trackUsage());
     
     middleware.push(this.upload.single("image"), this.handleClassify.bind(this));
     /**
@@ -74,7 +74,6 @@ class MLController {
 this.router.post("/classify", ...middleware);
 
 
-    this.router.post("/classify", ...middleware);
   }
 
   // ------------------------------------------------------------

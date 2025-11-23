@@ -4,7 +4,8 @@ const cookieParser = require("cookie-parser");
 const AppDatabase = require("./db");
 const AuthService = require("./auth");
 const createUsageMiddleware = require("./middleware/usage");
-const MLController = require("./ml"); 
+const MLController = require("./ml");
+const createClassificationsRouter = require("./routes/classifications");
 const swaggerDocs = require("./swagger");
 
 class Server {
@@ -20,7 +21,6 @@ class Server {
     this.startServer();
   }
 
-  // 🚀 MIDDLEWARE SETUP (IMPORTANT!)
   configureMiddleware() {
     this.app.use(express.json());
     this.app.use(cookieParser());
@@ -35,37 +35,34 @@ class Server {
       ],
       credentials: true,
       allowedHeaders: ["Authorization", "Content-Type"],
-      methods: ["GET", "POST", "OPTIONS"],
-      optionsSuccessStatus: 200,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      optionsSuccessStatus: 200
     };
 
     this.corsOptions = corsOptions;
     this.app.use(cors(corsOptions));
     this.app.options("*", cors(corsOptions));
-
-    this.app.use((req, res, next) => {
-      res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-      res.header("Access-Control-Allow-Credentials", "true");
-      res.header("Access-Control-Allow-Headers", "Authorization, Content-Type");
-      res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      next();
-    });
   }
 
-  // 🔐 AUTH SETUP
   initializeAuth() {
     this.db = new AppDatabase();
     this.auth = new AuthService(this.db, {
       jwtSecret: process.env.JWT_SECRET || "dev_secret_change_me",
-      cookieSecure: false,
+      cookieSecure: false
     });
     this.auth.seedAdmin();
     this.usage = createUsageMiddleware(this.auth, this.db);
   }
 
-  // 🔑 AUTH ROUTES
   registerAuthRoutes() {
     const router = express.Router();
+
+    /**
+     * @swagger
+     * tags:
+     *   - name: Auth
+     *   - name: Admin
+     */
 
     /**
      * @swagger
@@ -78,7 +75,7 @@ class Server {
      *       content:
      *         application/json:
      *           example:
-     *             email: "user@gmail.com"
+     *             email: "user@example.com"
      *             password: "123"
      *     responses:
      *       200:
@@ -108,7 +105,7 @@ class Server {
      *       content:
      *         application/json:
      *           example:
-     *             email: "user@gmail.com"
+     *             email: "user@example.com"
      *             password: "123"
      *     responses:
      *       200:
@@ -140,14 +137,19 @@ class Server {
      *       200:
      *         description: User profile
      */
-    router.get("/auth/me", this.usage.requireAuth, (req, res) => {
-      return res.status(200).json({
-        email: req.user.email,
-        role: req.user.role,
-        usage: req.user.usage,
-        warning: res.locals.apiUsageWarning || null,
-      });
-    });
+    router.get(
+      "/auth/me",
+      this.usage.requireAuth,
+      this.usage.trackUsage(),
+      (req, res) => {
+        return res.status(200).json({
+          email: req.user.email,
+          role: req.user.role,
+          usage: req.user.usage,
+          warning: res.locals.apiUsageWarning || null
+        });
+      }
+    );
 
     /**
      * @swagger
@@ -164,10 +166,10 @@ class Server {
       return res.status(200).json({ ok: true });
     });
 
-    // ADMIN ONLY ENDPOINTS --------------------
+  // Admin stats
     const requireAdmin = (req, res, next) => {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ error: "Admin access required" });
       }
       next();
     };
@@ -180,15 +182,16 @@ class Server {
      *     tags: [Admin]
      *     security:
      *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Endpoint stats
      */
-    router.get('/admin/stats', this.usage.requireAuth, requireAdmin, (req, res) => {
+    router.get("/admin/stats", this.usage.requireAuth, requireAdmin, (req, res) => {
       try {
-        const endpointStats = this.db.connection
-          .prepare(`SELECT method, path AS endpoint, request_count AS requests FROM endpoint_stats`)
-          .all();
+        const endpointStats = this.db.getEndpointStats();
         res.json({ endpoints: endpointStats });
       } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch statistics' });
+        res.status(500).json({ error: "Failed to fetch statistics" });
       }
     });
 
@@ -200,42 +203,48 @@ class Server {
      *     tags: [Admin]
      *     security:
      *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: User usage stats
      */
-    router.get('/admin/users', this.usage.requireAuth, requireAdmin, (req, res) => {
+    router.get("/admin/users", this.usage.requireAuth, requireAdmin, (req, res) => {
       try {
-        const userStats = this.db.connection.prepare(`
-          SELECT u.email, u.role, au.used AS totalRequests, au.quota_limit AS quotaLimit
-          FROM users u
-          LEFT JOIN api_usage au ON u.id = au.user_id
-        `).all();
+        const userStats = this.db.getUserUsageStats();
         res.json({ users: userStats });
       } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch user statistics' });
+        res.status(500).json({ error: "Failed to fetch user statistics" });
       }
     });
 
     this.app.use("/api", router);
+    this.app.use("/api/v1", router);
   }
 
-  // 🧠 ML ROUTES
   registerRouters() {
+    this.app.use(
+      "/api/classifications",
+      createClassificationsRouter({
+        db: this.db,
+        usage: this.usage
+      })
+    );
+    this.app.use(
+      "/api/v1/classifications",
+      createClassificationsRouter({
+        db: this.db,
+        usage: this.usage
+      })
+    );
+
     const ml = new MLController({
       db: this.db,
       requireAuth: this.usage?.requireAuth,
-      trackUsage: this.usage?.trackUsage,
+      trackUsage: this.usage?.trackUsage
     });
 
     this.app.use("/api/ml", ml.router);
+    this.app.use("/api/v1/ml", ml.router);
 
-    /**
-     * @swagger
-     * /api/ml/mine:
-     *   get:
-     *     summary: Get ML classification history for current user
-     *     tags: [ML]
-     *     security:
-     *       - bearerAuth: []
-     */
     this.app.get("/api/ml/mine", this.usage.requireAuth, (req, res) => {
       try {
         const rows = this.db.connection
@@ -256,7 +265,8 @@ class Server {
 
   startServer() {
     this.app.listen(this.PORT, () => {
-      console.log(`✅ API running on port ${this.PORT}`);
+      console.log(`API running on port ${this.PORT}`);
+      console.log(`CORS allowed origins: ${this.corsOptions.origin.join(", ")}`);
     });
   }
 }
