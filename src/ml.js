@@ -44,7 +44,7 @@ class MLController {
     middleware.push(this.upload.single("image"), this.handleClassify.bind(this));
     /**
  * @swagger
- * /api/ml/classify:
+ * /ml/classify:
  *   post:
  *     summary: Upload an image for ML classification
  *     tags:
