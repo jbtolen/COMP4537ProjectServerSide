@@ -255,9 +255,10 @@ class AppDatabase {
     return this.statements.userUsageStats.all().map((row) => ({
       email: row.email,
       userId: row.id,
-      firstName: row.first_name,
+      firstName: row.first_name || (row.email ? row.email.split('@')[0] : 'N/A'),
       token: row.id,
       used: row.used ?? 0,
+      totalRequests: row.used ?? 0,
       limit: row.quota_limit ?? 20
     }));
   }
