@@ -66,7 +66,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/auth/register:
+     * /auth/register:
      *   post:
      *     summary: Register a new user
      *     tags: [Auth]
@@ -108,7 +108,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/auth/login:
+     * /auth/login:
      *   post:
      *     summary: Login and receive JWT token
      *     tags: [Auth]
@@ -139,7 +139,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/auth/me:
+     * /auth/me:
      *   get:
      *     summary: Get current logged-in user's profile
      *     tags: [Auth]
@@ -165,7 +165,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/auth/logout:
+     * /auth/logout:
      *   post:
      *     summary: Logout (delete JWT cookie)
      *     tags: [Auth]
@@ -188,7 +188,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/admin/stats:
+     * /admin/stats:
      *   get:
      *     summary: Get API usage stats by endpoint
      *     tags: [Admin]
@@ -209,7 +209,7 @@ class Server {
 
     /**
      * @swagger
-     * /api/admin/users:
+     * /admin/users:
      *   get:
      *     summary: Get all users and usage stats
      *     tags: [Admin]
